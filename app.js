@@ -8,8 +8,16 @@
     no: { label: 'No', hint: 'Not for me', rank: 0 },
   };
   const GENDERS = [
-    { id: 'female', label: 'Female', symbol: '♀' },
-    { id: 'male', label: 'Male', symbol: '♂' },
+    {
+      id: 'female',
+      label: 'Female',
+      icon: '<circle cx="12" cy="9" r="5.5"/><path d="M12 14.5V22M8.5 18.5h7"/>',
+    },
+    {
+      id: 'male',
+      label: 'Male',
+      icon: '<circle cx="10" cy="14" r="5.5"/><path d="M14 10l6-6M15 4h5v5"/>',
+    },
   ];
   const PRONOUNS = {
     female: { them: 'her', their: 'her' },
@@ -151,7 +159,7 @@
   function renderSetup() {
     const count = buildItems().length;
     const partner = (i) => `
-      <fieldset class="card partner p${i}">
+      <fieldset class="card partner g-${S.players[i].gender}">
         <legend>Partner ${i + 1}</legend>
         <label class="field">
           <span>Name</span>
@@ -162,7 +170,8 @@
           ${GENDERS.map(
             (g) => `<button type="button" role="radio" aria-checked="${S.players[i].gender === g.id}"
               class="${S.players[i].gender === g.id ? 'on' : ''}" data-action="gender" data-i="${i}" data-g="${g.id}">
-              <span aria-hidden="true">${g.symbol}</span> ${g.label}</button>`
+              <svg class="g-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${g.icon}</svg>${g.label}</button>`
           ).join('')}
         </div>
       </fieldset>`;
