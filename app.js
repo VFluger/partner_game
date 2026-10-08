@@ -40,7 +40,6 @@
         { name: '', gender: 'male' },
       ],
       cats: CATEGORIES.map((c) => c.id),
-      mode: 'all',
       custom: {},
       items: [],
       answers: [{}, {}],
@@ -192,17 +191,6 @@
           }).join('')}
         </div>
 
-        <h2 class="section">At the end, show…</h2>
-        <div class="options">
-          <button type="button" class="option ${S.mode === 'all' ? 'on' : ''}" data-action="mode" data-mode="all" aria-pressed="${S.mode === 'all'}">
-            <b>Everything either of us is into</b>
-            <span>Anything one of you said Yes or Curious to, with both answers.</span>
-          </button>
-          <button type="button" class="option ${S.mode === 'mutual' ? 'on' : ''}" data-action="mode" data-mode="mutual" aria-pressed="${S.mode === 'mutual'}">
-            <b>Only things we both want</b>
-            <span>One-sided interests stay secret. Easier to be honest.</span>
-          </button>
-        </div>
 
         <div class="sticky-cta">
           <button class="btn primary big" data-action="start" ${ready ? '' : 'disabled'}>
@@ -302,11 +290,7 @@
         <div class="logo" aria-hidden="true">💌</div>
         <h1>You're both done</h1>
         <p class="lead">Sit together for this one, ${esc(name(0))} & ${esc(name(1))}.</p>
-        <p class="muted">${
-          S.mode === 'mutual'
-            ? "You'll only see the things you <em>both</em> said Yes or Curious to."
-            : "You'll see everything at least one of you said Yes or Curious to — and what the other picked."
-        }</p>
+        <p class="muted">You'll only see the things you <em>both</em> said Yes or Curious to. A No from either of you stays private.</p>
         <button class="btn primary big" data-action="show-results">Reveal 💞</button>
       </section>`;
   }
@@ -321,24 +305,19 @@
       { id: 'both', title: "You're both in", emoji: '🔥', note: 'You both said yes. What are you waiting for?', rows: [] },
       { id: 'explore', title: 'Worth exploring', emoji: '💫', note: 'One yes, one curious — a great place to start.', rows: [] },
       { id: 'curious', title: 'Curious together', emoji: '🌱', note: 'Neither of you is sure yet. Talk it through, go slow.', rows: [] },
-      { id: 'one', title: 'One-sided', emoji: '🤍', note: "A no is a no. These are for understanding each other, not for convincing.", rows: [] },
     ];
-    let hidden = 0;
+    // Shown only when both are at least curious; a No from either side hides it.
     for (const r of rows) {
+      if (!r.ra || !r.rb) continue;
       const sum = r.ra + r.rb;
-      if (r.ra && r.rb) groups[sum === 4 ? 0 : sum === 3 ? 1 : 2].rows.push(r);
-      else if (r.ra || r.rb) {
-        if (S.mode === 'all') groups[3].rows.push(r);
-        else hidden++;
-      }
+      groups[sum === 4 ? 0 : sum === 3 ? 1 : 2].rows.push(r);
     }
-    for (const g of groups) g.rows.sort((x, y) => y.ra + y.rb - (x.ra + x.rb));
-    return { groups: groups.filter((g) => g.rows.length), hidden, total: rows.length };
+    return { groups: groups.filter((g) => g.rows.length), total: rows.length };
   }
 
   function renderResults() {
-    const { groups, hidden, total } = computeResults();
-    const matches = groups.filter((g) => g.id !== 'one').reduce((n, g) => n + g.rows.length, 0);
+    const { groups, total } = computeResults();
+    const matches = groups.reduce((n, g) => n + g.rows.length, 0);
     const chip = (i, v) =>
       `<span class="ans-chip ${v}"><span class="dot p${i}" aria-hidden="true"></span>${esc(name(i))} · ${ANSWERS[v].label}</span>`;
 
@@ -372,7 +351,6 @@
         <header class="results-head">
           <h1 class="small"><span class="name p0">${esc(name(0))}</span> & <span class="name p1">${esc(name(1))}</span></h1>
           <p class="stat"><b>${matches}</b> shared interest${matches === 1 ? '' : 's'} out of ${total} questions</p>
-          ${hidden ? `<p class="muted">${hidden} one-sided answer${hidden === 1 ? '' : 's'} kept private, as agreed.</p>` : ''}
         </header>
         ${body}
         <div class="end-actions">
@@ -553,11 +531,6 @@
     cat: (el) => {
       const c = el.dataset.cat;
       S.cats = S.cats.includes(c) ? S.cats.filter((x) => x !== c) : [...S.cats, c];
-      save();
-      render();
-    },
-    mode: (el) => {
-      S.mode = el.dataset.mode;
       save();
       render();
     },

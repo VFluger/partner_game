@@ -136,14 +136,6 @@ fieldset.partner legend { color: var(--gc); transition: color .2s ease; }
 }
 .chip.on { background: color-mix(in srgb, var(--accent) 18%, var(--card)); border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); color: var(--text); text-decoration: none; }
 
-.options { display: grid; gap: 10px; }
-.option {
-  appearance: none; font: inherit; text-align: left; cursor: pointer; color: var(--text);
-  background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
-  display: grid; gap: 2px;
-}
-.option span { color: var(--muted); font-size: 14px; }
-.option.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
 
 .sticky-cta {
   position: sticky; bottom: 0; margin: 8px -16px 0; padding: 14px 16px max(14px, env(safe-area-inset-bottom));
