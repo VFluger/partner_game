@@ -144,7 +144,7 @@
         <ol class="steps">
           <li><b>Take turns</b> answering on this device. Each question gets a <span class="pill yes">Yes</span> <span class="pill curious">Curious</span> or <span class="pill no">No</span>.</li>
           <li><b>Add your own</b> questions any time while playing — your partner will get them too.</li>
-          <li><b>Reveal together</b> at the end and see what each of you picked.</li>
+          <li><b>Reveal together</b> and see only the things you <em>both</em> said Yes or Curious to.</li>
         </ol>
         <p class="fine">🔒 No accounts, nothing uploaded. Everything stays in this browser tab and disappears when you close it.</p>
         <label class="check">
@@ -633,6 +633,8 @@
 
   function render() {
     app.innerHTML = (SCREENS[S.phase] || renderWelcome)();
+    // The site footer only shows on the welcome and results screens, never mid-game.
+    document.body.dataset.phase = S.phase;
   }
 
   render();

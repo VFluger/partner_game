@@ -11,3 +11,7 @@ A private, in-browser game for two partners to discover the kinks and fantasies 
 Keyboard shortcuts while answering: `Y`/`1` yes, `C`/`2` curious, `N`/`3` no, `Backspace` back.
 
 Questions live in `questions.js`. Add or edit entries there.
+
+## Hosting
+
+The site is plain static files, ready for GitHub Pages (Settings → Pages → deploy from `main`, root folder). It will be served at <https://vfluger.github.io/partner_game/>, which is the URL used in the canonical link, Open Graph tags, `robots.txt` and `sitemap.xml`. Update those if you host it somewhere else.

@@ -3,17 +3,79 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1a0f1d">
-  <meta name="robots" content="noindex">
-  <title>Between Us</title>
+  <title>Between Us – Free Kink & Fantasy Quiz for Couples</title>
+  <meta name="description" content="A free, private yes / curious / no kink and fantasy quiz for couples. Take turns on one phone, add your own questions, and only see what you both want. No sign-up, nothing uploaded.">
+  <link rel="canonical" href="https://vfluger.github.io/partner_game/">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="rating" content="adult">
+  <meta name="theme-color" content="#170d1a">
+  <meta name="color-scheme" content="dark">
+  <meta name="author" content="Vojtěch Flüger">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Between Us">
+  <meta property="og:title" content="Between Us – Kink & Fantasy Quiz for Couples">
+  <meta property="og:description" content="Answer yes, curious or no in private, then reveal only the things you both want. Free, no sign-up, nothing leaves your phone.">
+  <meta property="og:url" content="https://vfluger.github.io/partner_game/">
+  <meta property="og:image" content="https://vfluger.github.io/partner_game/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Between Us – a private yes, curious or no game for couples">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Between Us – Kink & Fantasy Quiz for Couples">
+  <meta name="twitter:description" content="Answer in private, reveal only what you both want. Free, no sign-up.">
+  <meta name="twitter:image" content="https://vfluger.github.io/partner_game/og-image.png">
+
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💞</text></svg>">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Between Us",
+    "url": "https://vfluger.github.io/partner_game/",
+    "description": "A private yes / curious / no kink and fantasy compatibility quiz for couples. Partners answer in turn on one device, can add their own questions, and only mutual interests are revealed.",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any (web browser)",
+    "browserRequirements": "Requires JavaScript",
+    "isAccessibleForFree": true,
+    "inLanguage": "en",
+    "typicalAgeRange": "18-",
+    "image": "https://vfluger.github.io/partner_game/og-image.png",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Vojtěch Flüger", "url": "https://github.com/VFluger" },
+    "codeRepository": "https://github.com/VFluger/partner_game"
+  }
+  </script>
 </head>
 <body>
-  <main id="app" aria-live="polite"></main>
+  <main id="app" aria-live="polite">
+    <!-- Shown to search engines and before the script loads; app.js replaces it. -->
+    <section class="screen center welcome">
+      <div class="logo" aria-hidden="true">💞</div>
+      <h1>Between Us</h1>
+      <p class="lead">A private kink and fantasy quiz for couples. Find out what you're <em>both</em> curious about, without the awkward asking.</p>
+      <ol class="steps">
+        <li><b>Take turns</b> answering on one phone. Each question gets a Yes, Curious or No.</li>
+        <li><b>Add your own</b> questions while playing. Your partner answers them too.</li>
+        <li><b>Reveal together.</b> You only see the things you both said Yes or Curious to.</li>
+      </ol>
+      <p class="fine">More than 50 questions about sensual play, dirty talk, toys, power play, bondage, spanking, roleplay and more. Free, no accounts, and nothing is uploaded.</p>
+      <noscript><p class="fine">This game needs JavaScript to run.</p></noscript>
+    </section>
+  </main>
   <div id="modal-root"></div>
-  <noscript>This game needs JavaScript to run.</noscript>
-  <script src="questions.js"></script>
-  <script src="app.js"></script>
+
+  <footer class="site-foot">
+    <a href="https://github.com/VFluger/partner_game" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      Open source on GitHub
+    </a>
+  </footer>
+
+  <script src="questions.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
