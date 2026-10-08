@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STORE_KEY = 'between-us-v1';
+  const STORE_KEY = 'between-us-v2';
   const ANSWERS = {
     yes: { label: 'Yes', hint: "I'm into it", rank: 2 },
     curious: { label: 'Curious', hint: "Maybe — let's talk", rank: 1 },
@@ -25,6 +25,11 @@
   };
 
   const QMAP = Object.fromEntries(QUESTIONS.map((q) => [q.id, q]));
+  const CAT_ORDER = Object.fromEntries(CATEGORIES.map((c, i) => [c.id, i]));
+  // Each partner's second round starts with this many held-back questions, so
+  // a round 2 always exists and questions added by the other partner blend in.
+  const RESERVE_MIN = 5;
+  const RESERVE_MAX = 9;
   const CMAP = Object.fromEntries([...CATEGORIES, CUSTOM_CATEGORY].map((c) => [c.id, c]));
 
   const app = document.getElementById('app');
@@ -41,10 +46,11 @@
       ],
       cats: CATEGORIES.map((c) => c.id),
       custom: {},
-      items: [],
+      items: [], // every question (as asked in one direction), used for results
+      rounds: [], // [{ p: player index, keys: [item keys in the order they're asked] }]
+      t: 0, // index of the current round
       answers: [{}, {}],
-      turn: 0,
-      stack: [],
+      stack: [], // keys answered in the current round, for Back
       lastDone: null,
     };
   }
@@ -103,8 +109,65 @@
     return QUESTIONS.filter((q) => S.cats.includes(q.cat)).flatMap((q) => expand(q, q.cat));
   }
 
-  const pending = (i) => S.items.filter((it) => !(it.key in S.answers[i]));
-  const answeredCount = (i) => S.items.filter((it) => it.key in S.answers[i]).length;
+  const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  const idOf = (key) => key.split('@')[0];
+  const itemByKey = (key) => S.items.find((it) => it.key === key);
+
+  // Both directions of a question stay next to each other.
+  function groups(keys) {
+    const out = [];
+    for (const k of keys) {
+      const last = out[out.length - 1];
+      if (last && idOf(last[0]) === idOf(k)) last.push(k);
+      else out.push([k]);
+    }
+    return out;
+  }
+
+  // Turn order is Alex, Sam, Alex, Sam. Each partner gets their own shuffled
+  // order, with a few questions held back for their second round.
+  function planRounds() {
+    const units = groups(S.items.map((it) => it.key));
+    const split = [0, 1].map(() => {
+      const order = shuffle(units.slice());
+      const k = order.length < 2 ? 0 : Math.min(randInt(RESERVE_MIN, RESERVE_MAX), Math.max(1, Math.floor(order.length / 3)));
+      return { first: order.slice(k).flat(), reserve: order.slice(0, k).flat() };
+    });
+    return [
+      { p: 0, keys: split[0].first },
+      { p: 1, keys: split[1].first },
+      { p: 0, keys: split[0].reserve },
+      { p: 1, keys: split[1].reserve },
+    ];
+  }
+
+  // Drop a group of keys at a random spot that doesn't split another pair.
+  function insertRandomly(keys, group) {
+    const spots = [];
+    for (let i = 0; i <= keys.length; i++) {
+      if (i === 0 || i === keys.length || idOf(keys[i - 1]) !== idOf(keys[i])) spots.push(i);
+    }
+    keys.splice(spots[randInt(0, spots.length - 1)], 0, ...group);
+  }
+
+  const round = () => S.rounds[S.t];
+  const player = () => round().p;
+  const pendingIn = (r) => r.keys.filter((k) => !(k in S.answers[r.p]));
+  function nextRoundIdx() {
+    for (let t = S.t + 1; t < S.rounds.length; t++) if (pendingIn(S.rounds[t]).length) return t;
+    return -1;
+  }
+  // Questions can be added while the other partner still has a round to come.
+  const partnerRoundIdx = () => S.rounds.findIndex((r, t) => t > S.t && r.p === other(player()));
+  const roundNo = (t) => S.rounds.slice(0, t + 1).filter((r) => r.p === S.rounds[t].p).length;
+  const hasLaterRound = () => S.rounds.some((r, t) => t > S.t && r.p === player());
 
   // What player i sees for an item.
   function promptFor(item, i) {
@@ -157,6 +220,8 @@
 
   function renderSetup() {
     const count = buildItems().length;
+    // Roughly 7 seconds a question, rounded to 5 minutes so it doesn't reveal an exact count.
+    const minutes = Math.max(5, Math.round((count * 7) / 60 / 5) * 5);
     const partner = (i) => `
       <fieldset class="card partner g-${S.players[i].gender}">
         <legend>Partner ${i + 1}</legend>
@@ -194,7 +259,7 @@
 
         <div class="sticky-cta">
           <button class="btn primary big" data-action="start" ${ready ? '' : 'disabled'}>
-            Start · ${count} questions each
+            Start · about ${minutes} min each
           </button>
           ${ready ? '' : `<p class="muted center-text">${count ? 'Enter both names to start.' : 'Pick at least one topic.'}</p>`}
         </div>
@@ -202,35 +267,33 @@
   }
 
   function renderHandoff() {
-    const i = S.turn;
-    const left = pending(i).length;
-    const returning = answeredCount(i) > 0;
+    const i = player();
+    const n = roundNo(S.t);
     const done = S.lastDone;
     return `
       <section class="screen center handoff p${i}">
         ${done !== null ? `<p class="done-note">✓ Thanks, ${esc(name(done))}!</p>` : ''}
         <div class="handoff-icon" aria-hidden="true">📱</div>
+        <p class="round-tag">Round ${n} of 2</p>
         <h1>Pass it to <span class="name p${i}">${esc(name(i))}</span></h1>
         <p class="lead">${esc(name(other(i)))}, no peeking 👀</p>
-        ${
-          returning
-            ? `<p class="muted">${esc(name(other(i)))} added ${left} new question${left === 1 ? '' : 's'} while playing. Answer ${left === 1 ? 'it' : 'those'} and you're done.</p>`
-            : `<p class="muted">${left} questions. Go with your gut — "Curious" is a perfectly good answer.</p>`
-        }
-        <button class="btn primary big" data-action="begin-turn">I'm ${esc(name(i))} — start</button>
+        <p class="muted">${
+          n === 1 ? 'Go with your gut. "Curious" is a perfectly good answer.' : 'A few more questions to finish off.'
+        }</p>
+        <button class="btn primary big" data-action="begin-turn">I'm ${esc(name(i))}, start</button>
       </section>`;
   }
 
   function renderPlay() {
-    const i = S.turn;
-    const list = pending(i);
-    const total = S.items.length;
-    const answered = answeredCount(i);
+    const i = player();
+    const list = pendingIn(round());
+    const total = round().keys.length;
+    const answered = total - list.length;
 
     const header = `
       <header class="bar">
         <span class="who p${i}">${esc(name(i))}</span>
-        <span class="count">${Math.min(answered + 1, total)} / ${total}</span>
+        <span class="count">Round ${roundNo(S.t)} · ${Math.min(answered + 1, total)} / ${total}</span>
         <button class="icon-btn" data-action="quit" aria-label="Quit game" title="Quit">✕</button>
       </header>
       <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${answered}">
@@ -238,26 +301,27 @@
       </div>`;
 
     if (!list.length) {
+      const nxt = nextRoundIdx();
+      const canAdd = partnerRoundIdx() >= 0;
       return `
         <section class="screen play">
           ${header}
           <div class="card q done">
             <div class="big-emoji" aria-hidden="true">🎉</div>
-            <h2 class="qtext">All done, ${esc(name(i))}!</h2>
-            <p class="muted">Anything else you'd like to ask? Add it now — ${esc(name(other(i)))} will answer it too.</p>
+            <h2 class="qtext">${hasLaterRound() ? `Round ${roundNo(S.t)} done` : 'All done'}, ${esc(name(i))}!</h2>
+            ${canAdd ? `<p class="muted">Anything else you'd like to ask? Add it now and ${esc(name(other(i)))} will get it too.</p>` : ''}
           </div>
           <div class="row">
             <button class="btn ghost" data-action="back" ${S.stack.length ? '' : 'disabled'}>← Change last</button>
-            <button class="btn ghost" data-action="add">+ Add a question</button>
+            ${canAdd ? '<button class="btn ghost" data-action="add">+ Add a question</button>' : ''}
           </div>
           <button class="btn primary big" data-action="finish-turn">${
-            pending(other(i)).length ? `Hand over to ${esc(name(other(i)))}` : 'Finish'
+            nxt < 0 ? 'Finish' : S.rounds[nxt].p === i ? 'Continue' : `Hand over to ${esc(name(S.rounds[nxt].p))}`
           }</button>
         </section>`;
     }
 
-    const item = list[0];
-    const q = getQ(item.id);
+    const item = itemByKey(list[0]);
     const cat = CMAP[item.cat] || CUSTOM_CATEGORY;
     const p = promptFor(item, i);
     return `
@@ -267,7 +331,6 @@
           <div class="tag"><span aria-hidden="true">${cat.emoji}</span> ${esc(cat.name)}</div>
           <h2 class="qtext">${esc(p.text)}</h2>
           ${p.dir ? `<div class="dir">${esc(p.dir)}</div>` : ''}
-          ${q.by !== undefined ? `<div class="by">Added by ${q.by === i ? 'you' : esc(name(q.by))}</div>` : ''}
         </div>
         <div class="answers">
           ${Object.entries(ANSWERS)
@@ -279,7 +342,7 @@
         </div>
         <div class="row">
           <button class="btn ghost" data-action="back" ${S.stack.length ? '' : 'disabled'}>← Back</button>
-          <button class="btn ghost" data-action="add">+ Add a question</button>
+          ${partnerRoundIdx() >= 0 ? '<button class="btn ghost" data-action="add">+ Add a question</button>' : ''}
         </div>
       </section>`;
   }
@@ -312,6 +375,8 @@
       const sum = r.ra + r.rb;
       groups[sum === 4 ? 0 : sum === 3 ? 1 : 2].rows.push(r);
     }
+    const catPos = (r) => CAT_ORDER[r.item.cat] ?? CATEGORIES.length;
+    for (const g of groups) g.rows.sort((x, y) => catPos(x) - catPos(y));
     return { groups: groups.filter((g) => g.rows.length), total: rows.length };
   }
 
@@ -364,12 +429,15 @@
   // ---------- modals ----------
 
   function openAddModal() {
-    const i = S.turn;
+    const i = player();
+    const cur = pendingIn(round())[0];
+    let cat = (cur && itemByKey(cur).cat) || S.cats[0];
+    if (!CAT_ORDER.hasOwnProperty(cat)) cat = S.cats[0];
     modalRoot.innerHTML = `
       <div class="modal-backdrop" data-action="close-modal">
         <form class="modal card" role="dialog" aria-modal="true" aria-labelledby="add-title" id="add-form">
           <h2 id="add-title">Add a question</h2>
-          <p class="muted">You'll answer it next, and ${esc(name(other(i)))} will get it on ${(PRONOUNS[S.players[other(i)].gender] || PRONOUNS.female).their} turn. Nobody sees anyone's answers until the end.</p>
+          <p class="muted">You'll answer it straight away. ${esc(name(other(i)))} gets it too, shuffled in with the rest. It looks just like the other questions, so there's no way to tell it was added.</p>
           <div class="seg wide" role="radiogroup" aria-label="Question type">
             <button type="button" role="radio" aria-checked="true" class="on" data-kind="shared">Something we do together</button>
             <button type="button" role="radio" aria-checked="false" data-kind="dir">One does it to the other</button>
@@ -383,7 +451,17 @@
               <input type="text" name="give" maxlength="120" placeholder="e.g. Giving a sensual foot rub"></label>
             <label class="field"><span>The one receiving it</span>
               <input type="text" name="receive" maxlength="120" placeholder="e.g. Getting a sensual foot rub"></label>
-            <p class="muted small-print">It's asked both ways — ${esc(name(i))} → ${esc(name(other(i)))} and ${esc(name(other(i)))} → ${esc(name(i))}.</p>
+            <p class="muted small-print">It's asked both ways: ${esc(name(i))} → ${esc(name(other(i)))} and ${esc(name(other(i)))} → ${esc(name(i))}.</p>
+          </div>
+          <div class="field"><span>Topic</span>
+            <div class="chips small" role="radiogroup" aria-label="Topic">
+              ${CATEGORIES.filter((c) => S.cats.includes(c.id))
+                .map(
+                  (c) => `<button type="button" role="radio" class="chip ${c.id === cat ? 'on' : ''}" aria-checked="${c.id === cat}"
+                    data-cat-pick="${c.id}"><span aria-hidden="true">${c.emoji}</span> ${c.name}</button>`
+                )
+                .join('')}
+            </div>
           </div>
           <p class="error" hidden></p>
           <div class="row">
@@ -395,6 +473,15 @@
 
     const form = modalRoot.querySelector('form');
     let kind = 'shared';
+    form.querySelectorAll('[data-cat-pick]').forEach((b) =>
+      b.addEventListener('click', () => {
+        cat = b.dataset.catPick;
+        form.querySelectorAll('[data-cat-pick]').forEach((x) => {
+          x.classList.toggle('on', x === b);
+          x.setAttribute('aria-checked', x === b);
+        });
+      })
+    );
     form.querySelectorAll('[data-kind]').forEach((b) =>
       b.addEventListener('click', () => {
         kind = b.dataset.kind;
@@ -408,7 +495,10 @@
     );
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const val = (n) => form.elements[n].value.trim();
+      const val = (n) => {
+        const v = form.elements[n].value.trim();
+        return v.charAt(0).toUpperCase() + v.slice(1);
+      };
       const err = form.querySelector('.error');
       let q;
       if (kind === 'shared') {
@@ -418,7 +508,7 @@
         if (!val('give') || !val('receive')) return showErr(err, 'Fill in both sides.');
         q = { give: val('give'), receive: val('receive') };
       }
-      addCustom(q);
+      addCustom({ ...q, cat });
       closeModal();
     });
     setTimeout(() => form.querySelector('input[name="text"]').focus(), 30);
@@ -454,15 +544,24 @@
   }
 
   function addCustom(q) {
+    const me = player();
+    const target = partnerRoundIdx();
+    if (target < 0) return;
     const id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    S.custom[id] = { ...q, by: S.turn };
+    S.custom[id] = q;
     const newItems = q.give
-      ? [S.turn, other(S.turn)].map((g) => ({ key: `${id}@${g}`, id, cat: 'custom', g }))
-      : [{ key: id, id, cat: 'custom' }];
-    // Slot it in right before the current question so the author answers it next.
-    const current = pending(S.turn)[0];
-    const at = current ? S.items.indexOf(current) : S.items.length;
-    S.items.splice(at, 0, ...newItems);
+      ? [me, other(me)].map((g) => ({ key: `${id}@${g}`, id, cat: q.cat, g }))
+      : [{ key: id, id, cat: q.cat }];
+    const keys = newItems.map((it) => it.key);
+    S.items.push(...newItems);
+    // The author answers it next (after finishing a half-answered pair)...
+    const r = round();
+    const cur = pendingIn(r)[0];
+    let at = cur ? r.keys.indexOf(cur) : r.keys.length;
+    while (at > 0 && at < r.keys.length && idOf(r.keys[at - 1]) === idOf(r.keys[at])) at++;
+    r.keys.splice(at, 0, ...keys);
+    // ...and the partner gets it somewhere random in their next round.
+    insertRandomly(S.rounds[target].keys, keys);
     save();
     render();
   }
@@ -470,10 +569,10 @@
   // ---------- actions ----------
 
   function answer(val) {
-    const item = pending(S.turn)[0];
-    if (!item) return;
-    S.answers[S.turn][item.key] = val;
-    S.stack.push(item.key);
+    const key = pendingIn(round())[0];
+    if (!key) return;
+    S.answers[player()][key] = val;
+    S.stack.push(key);
     save();
     render();
   }
@@ -481,21 +580,20 @@
   function back() {
     const key = S.stack.pop();
     if (key === undefined) return;
-    delete S.answers[S.turn][key];
+    delete S.answers[player()][key];
     save();
     render();
   }
 
   function finishTurn() {
-    S.lastDone = S.turn;
+    const me = player();
+    const nxt = nextRoundIdx();
     S.stack = [];
-    const nxt = other(S.turn);
-    if (pending(nxt).length) {
-      S.turn = nxt;
-      go('handoff');
-    } else {
-      go('reveal');
-    }
+    if (nxt < 0) return go('reveal');
+    S.t = nxt;
+    if (S.rounds[nxt].p === me) return go('play');
+    S.lastDone = me;
+    go('handoff');
   }
 
   function resultsText() {
@@ -537,9 +635,10 @@
     start: () => {
       S.players.forEach((p) => (p.name = p.name.trim()));
       S.items = buildItems();
+      S.rounds = planRounds();
+      S.t = 0;
       S.answers = [{}, {}];
       S.custom = {};
-      S.turn = 0;
       S.stack = [];
       S.lastDone = null;
       go('handoff');

@@ -250,3 +250,8 @@ body[data-phase="results"] .site-foot { display: flex; }
 @keyframes pop { from { opacity: 0; transform: scale(.97) translateY(6px); } }
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.round-tag { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.chips.small { gap: 6px; }
+.chips.small .chip { font-size: 13px; padding: 6px 11px; }
+.chips.small .chip { text-decoration: none; }
